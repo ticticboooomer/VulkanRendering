@@ -7,27 +7,48 @@
 
 #include "GLFW/glfw3.h"
 #include <vulkan/vulkan.h>
+#include <array>
+#include <vector>
 
 const int WIDTH = 800;
 const int HEIGHT = 600;
 
+constexpr std::array validationLayers{
+    "VK_LAYER_KHRONOS_validation"
+};
+
+#ifdef NDEBUG
+const bool enableValidationLayers = false;
+#else
+const bool enableValidationLayers = true;
+#endif
+
 class GameApplication {
 public:
-     void run();
+    void run();
 
 private:
-     void initializeVulkan();
+    void initializeVulkan();
 
-     void mainLoop();
+    void mainLoop();
 
-     void cleanup();
+    void cleanup();
 
-     void initializeWindow();
+    void initializeWindow();
 
-     void createVkInstance();
+    void createVkInstance();
 
-     VkInstance instance;
-     GLFWwindow *window;
+    void setupDebugMessenger();
+
+    bool checkValidationLayerSupport();
+
+    void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
+
+    std::vector<const char *> getRequiredExtensions();
+
+    VkInstance instance;
+    VkDebugUtilsMessengerEXT debugMessenger;
+    GLFWwindow *window;
 };
 
 
