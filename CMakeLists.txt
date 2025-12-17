@@ -5,7 +5,8 @@ set(CMAKE_C_STANDARD 17)
 set(SOURCE_FILES
         src/main.cpp
         src/GameApplication.cpp
-        src/GameApplication.h)
+        src/GameApplication.h
+        src/Macros.h)
 
 
 add_subdirectory(thirdparty)
