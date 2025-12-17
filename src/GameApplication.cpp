@@ -3,7 +3,9 @@
 //
 
 #include "GameApplication.h"
-#include <>
+
+#include <iostream>
+#include <GLFW/glfw3.h>
 
 void GameApplication::run() {
     initializeWindow();
@@ -13,5 +15,14 @@ void GameApplication::run() {
 }
 
 void GameApplication::initializeWindow() {
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
+    // setup glfw window
 }
+
+void GameApplication::initializeVulkan() {}
+
+void GameApplication::mainLoop() {}
+
+void GameApplication::cleanup() {}
