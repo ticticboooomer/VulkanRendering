@@ -59,6 +59,8 @@ void GameApplication::mainLoop() {
 }
 
 void GameApplication::cleanup() {
+    vkDestroyInstance(instance, nullptr);
+
     glfwDestroyWindow(window);
 
     glfwTerminate();
