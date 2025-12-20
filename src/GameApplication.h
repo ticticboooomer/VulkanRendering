@@ -75,6 +75,8 @@ private:
 
     void createSwapChain();
 
+    void createImageViews();
+
     bool isDeviceSuitable(VkPhysicalDevice device);
 
     bool checkDeviceExtensionSupport(VkPhysicalDevice device);
@@ -101,6 +103,7 @@ private:
     VkSurfaceKHR surface;
     VkSwapchainKHR swapChain;
     VkFormat swapChainImageFormat;
+    std::vector<VkImageView> swapChainImageViews;
     VkExtent2D swapChainExtent;
     VkDevice device;
     GLFWwindow *window;
