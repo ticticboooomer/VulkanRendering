@@ -81,6 +81,18 @@ private:
 
     void createRenderPass();
 
+    void createFrameBuffers();
+
+    void createCommandPool();
+
+    void createCommandBuffer();
+
+    void createSyncObjects();
+
+    void drawFrame();
+
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+
     VkShaderModule createShaderModule(const std::vector<char>& code);
 
     bool isDeviceSuitable(VkPhysicalDevice device);
@@ -114,6 +126,12 @@ private:
     VkRenderPass renderPass;
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
+    std::vector<VkFramebuffer> swapChainFrameBuffers;
+    VkCommandPool commandPool;
+    VkCommandBuffer commandBuffer;
+    VkSemaphore imageAvailableSemaphore;
+    VkSemaphore renderFinishedSemaphore;
+    VkFence inFlightFence;
     VkDevice device;
     GLFWwindow *window;
 };

@@ -486,9 +486,172 @@ void GameApplication::createRenderPass() {
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
 
+    VkSubpassDependency dependency{};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
+
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    renderPassInfo.dependencyCount = 1;
+    renderPassInfo.pDependencies = &dependency;
+
     VK_CHECK(vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass));
 
     LOGLN("Created Render Pass");
+}
+
+void GameApplication::createFrameBuffers() {
+    swapChainFrameBuffers.resize(swapChainImageViews.size());
+
+    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+        VkImageView attachments[] = {
+            swapChainImageViews[i]
+        };
+
+        VkFramebufferCreateInfo framebufferCreateInfo{};
+        framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferCreateInfo.renderPass = renderPass;
+        framebufferCreateInfo.attachmentCount = 1;
+        framebufferCreateInfo.pAttachments = attachments;
+        framebufferCreateInfo.width = swapChainExtent.width;
+        framebufferCreateInfo.height = swapChainExtent.height;
+        framebufferCreateInfo.layers = 1;
+
+        VK_CHECK(vkCreateFramebuffer(device, &framebufferCreateInfo, nullptr, &swapChainFrameBuffers[i]));
+    }
+    LOGLN("Created Framebuffers");
+}
+
+void GameApplication::createCommandPool() {
+    QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
+
+    VkCommandPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+
+    VK_CHECK(vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool));
+
+    LOGLN("Created Command Pool");
+}
+
+void GameApplication::createCommandBuffer() {
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = commandPool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = 1;
+
+    VK_CHECK(vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer));
+
+    LOGLN("Created Command Buffer");
+}
+
+void GameApplication::createSyncObjects() {
+    VkSemaphoreCreateInfo semaphoreInfo{};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    VK_CHECK(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore));
+    VK_CHECK(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore));
+    VK_CHECK(vkCreateFence(device, &fenceInfo, nullptr, &inFlightFence));
+
+    LOGLN("Created Semaphores & Fences");
+}
+
+void GameApplication::drawFrame() {
+    vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
+    vkResetFences(device, 1, &inFlightFence);
+
+    uint32_t imageIndex;
+    vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+
+    vkResetCommandBuffer(commandBuffer, 0);
+
+    recordCommandBuffer(commandBuffer, imageIndex);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkSemaphore waitSemaphores = {imageAvailableSemaphore};
+    VkPipelineStageFlags waitStages = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = &waitSemaphores;
+    submitInfo.pWaitDstStageMask = &waitStages;
+
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    VkSemaphore signalSemaphores = {renderFinishedSemaphore};
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &signalSemaphores;
+
+    VK_CHECK(vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence));
+
+
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = &signalSemaphores;
+
+    VkSwapchainKHR swapChains[] = {swapChain};
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &imageIndex;
+
+    presentInfo.pResults = nullptr;
+    VK_CHECK(vkQueuePresentKHR(graphicsQueue, &presentInfo));
+}
+
+void GameApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = 0;
+    beginInfo.pInheritanceInfo = nullptr;
+
+    VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo));
+
+    VkRenderPassBeginInfo renderPassBeginInfo{};
+    renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassBeginInfo.renderPass = renderPass;
+    renderPassBeginInfo.framebuffer = swapChainFrameBuffers[imageIndex];
+    renderPassBeginInfo.renderArea.offset = { 0, 0 };
+    renderPassBeginInfo.renderArea.extent = swapChainExtent;
+
+    VkClearValue clearValue = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    renderPassBeginInfo.clearValueCount = 1;
+    renderPassBeginInfo.pClearValues = &clearValue;
+
+    vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = swapChainExtent.width;
+    viewport.height = swapChainExtent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = { 0, 0 };
+    scissor.extent = swapChainExtent;
+    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+    vkCmdEndRenderPass(commandBuffer);
+
+    VK_CHECK(vkEndCommandBuffer(commandBuffer));
 }
 
 VkShaderModule GameApplication::createShaderModule(const std::vector<char> &code) {
@@ -661,6 +824,10 @@ void GameApplication::initializeVulkan() {
     createImageViews();
     createRenderPass();
     createGraphicsPipeline();
+    createFrameBuffers();
+    createCommandPool();
+    createCommandBuffer();
+    createSyncObjects();
     LOGLN("Finished Vulkan Init process");
 }
 
@@ -668,12 +835,25 @@ void GameApplication::mainLoop() {
     LOGLN("entered main loop");
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
+        drawFrame();
     }
+
+    vkDeviceWaitIdle(device);
     LOGLN("Exiting main loop");
 }
 
 void GameApplication::cleanup() {
     LOGLN("Begun Cleanup");
+
+    vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);
+    vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
+    vkDestroyFence(device, inFlightFence, nullptr);
+
+    vkDestroyCommandPool(device, commandPool, nullptr);
+
+    for (auto framebuffer : swapChainFrameBuffers) {
+        vkDestroyFramebuffer(device, framebuffer, nullptr);
+    }
 
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
