@@ -263,6 +263,14 @@ void GameApplication::createSwapChain() {
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
     VK_CHECK(vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain));
+
+    vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
+    swapChainImages.resize(imageCount);
+    vkGetSwapchainImagesKHR(device, swapChain, &imageCount, swapChainImages.data());
+
+    swapChainImageFormat = surfaceFormat.format;
+    swapChainExtent = extent;
+
     LOGLN("Created Swapchain");
 }
 

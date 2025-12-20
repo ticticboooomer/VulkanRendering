@@ -91,6 +91,8 @@ private:
 
     std::vector<const char *> getRequiredExtensions();
 
+    std::vector<VkImage> swapChainImages;
+
     VkInstance instance;
     VkDebugUtilsMessengerEXT debugMessenger;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -98,6 +100,8 @@ private:
     VkQueue presentQueue;
     VkSurfaceKHR surface;
     VkSwapchainKHR swapChain;
+    VkFormat swapChainImageFormat;
+    VkExtent2D swapChainExtent;
     VkDevice device;
     GLFWwindow *window;
 };
