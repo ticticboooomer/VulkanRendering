@@ -79,6 +79,8 @@ private:
 
     void createGraphicsPipeline();
 
+    void createRenderPass();
+
     VkShaderModule createShaderModule(const std::vector<char>& code);
 
     bool isDeviceSuitable(VkPhysicalDevice device);
@@ -109,6 +111,7 @@ private:
     VkFormat swapChainImageFormat;
     std::vector<VkImageView> swapChainImageViews;
     VkExtent2D swapChainExtent;
+    VkRenderPass renderPass;
     VkPipelineLayout pipelineLayout;
     VkDevice device;
     GLFWwindow *window;
