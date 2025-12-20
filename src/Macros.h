@@ -19,4 +19,8 @@
         }                                                               \
     } while (0)
 
+#define LOGLN(x) std::cout << x << std::endl
+
 #endif //VULKANRENDER_MACROS_H
+
+
