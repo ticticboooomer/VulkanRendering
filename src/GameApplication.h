@@ -113,6 +113,7 @@ private:
     VkExtent2D swapChainExtent;
     VkRenderPass renderPass;
     VkPipelineLayout pipelineLayout;
+    VkPipeline graphicsPipeline;
     VkDevice device;
     GLFWwindow *window;
 };
