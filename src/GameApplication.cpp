@@ -65,6 +65,12 @@ static std::vector<char> readFile(const std::string& filename) {
     return buffer;
 }
 
+
+static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+    auto app = reinterpret_cast<GameApplication*>(glfwGetWindowUserPointer(window));
+    app->framebufferResized = true;
+}
+
 void GameApplication::run() {
     LOGLN("Started RUN");
     initializeWindow();
@@ -80,9 +86,12 @@ void GameApplication::initializeWindow() {
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan Render", nullptr, nullptr);
+    glfwSetWindowUserPointer(window, this);
+    glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 
     LOGLN("Initialized Window");
 }
+
 
 void GameApplication::createVkInstance() {
     if (enableValidationLayers && !checkValidationLayerSupport()) {
@@ -576,10 +585,19 @@ void GameApplication::createSyncObjects() {
 
 void GameApplication::drawFrame() {
     vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+    VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        recreateSwapChain();
+        return;
+    }
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        VK_FAIL(result);
+    }
+
+    vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
     vkResetCommandBuffer(commandBuffers[currentFrame], 0);
 
@@ -603,7 +621,6 @@ void GameApplication::drawFrame() {
 
     VK_CHECK(vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]));
 
-
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.waitSemaphoreCount = 1;
@@ -615,9 +632,35 @@ void GameApplication::drawFrame() {
     presentInfo.pImageIndices = &imageIndex;
 
     presentInfo.pResults = nullptr;
-    VK_CHECK(vkQueuePresentKHR(graphicsQueue, &presentInfo));
+    result = vkQueuePresentKHR(graphicsQueue, &presentInfo);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
+        framebufferResized = false;
+        recreateSwapChain();
+    } else if (result != VK_SUCCESS) {
+        VK_FAIL(result);
+    }
 
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+void GameApplication::recreateSwapChain() {
+    LOGLN("start recreate swapchain");
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(window, &width, &height);
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(window, &width, &height);
+        glfwWaitEvents();
+    }
+
+    vkDeviceWaitIdle(device);
+
+    cleanupSwapchain();
+
+    createSwapChain();
+    createImageViews();
+    createFrameBuffers();
+
+    LOGLN("Recreated Swapchain");
 }
 
 void GameApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
@@ -852,8 +895,29 @@ void GameApplication::mainLoop() {
     LOGLN("Exiting main loop");
 }
 
+
+void GameApplication::cleanupSwapchain() {
+    for (auto framebuffer : swapChainFrameBuffers) {
+        vkDestroyFramebuffer(device, framebuffer, nullptr);
+    }
+
+    for (auto imageView : swapChainImageViews) {
+        vkDestroyImageView(device, imageView, nullptr);
+    }
+
+    vkDestroySwapchainKHR(device, swapChain, nullptr);
+}
+
+
 void GameApplication::cleanup() {
     LOGLN("Begun Cleanup");
+
+    cleanupSwapchain();
+
+    vkDestroyPipeline(device, graphicsPipeline, nullptr);
+    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+
+    vkDestroyRenderPass(device, renderPass, nullptr);
 
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
@@ -862,20 +926,6 @@ void GameApplication::cleanup() {
     }
 
     vkDestroyCommandPool(device, commandPool, nullptr);
-
-    for (auto framebuffer : swapChainFrameBuffers) {
-        vkDestroyFramebuffer(device, framebuffer, nullptr);
-    }
-
-    vkDestroyPipeline(device, graphicsPipeline, nullptr);
-    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-    vkDestroyRenderPass(device, renderPass, nullptr);
-
-    for (auto imageView : swapChainImageViews) {
-        vkDestroyImageView(device, imageView, nullptr);
-    }
-
-    vkDestroySwapchainKHR(device, swapChain, nullptr);
 
     vkDestroyDevice(device, nullptr);
 

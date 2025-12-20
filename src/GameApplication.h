@@ -50,6 +50,7 @@ struct SwapChainSupportDetails {
 class GameApplication {
 public:
     void run();
+    bool framebufferResized = false;
 
 private:
 
@@ -92,6 +93,10 @@ private:
     void createSyncObjects();
 
     void drawFrame();
+
+    void recreateSwapChain();
+
+    void cleanupSwapchain();
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
