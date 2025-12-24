@@ -20,4 +20,5 @@ target_include_directories(VulkanRender PUBLIC ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(VulkanRender Vulkan::Vulkan)
 
 target_link_libraries(VulkanRender glfw)
+target_link_libraries(VulkanRender glm)
 
