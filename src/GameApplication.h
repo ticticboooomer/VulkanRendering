@@ -9,9 +9,14 @@
 #include <array>
 #include <optional>
 #include <vector>
+#include <chrono>
 
 #include <GLFW/glfw3.h>
+
+#define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 
 
 const int WIDTH = 800;
@@ -78,6 +83,12 @@ struct SwapChainSupportDetails {
     std::vector<VkPresentModeKHR> presentModes;
 };
 
+struct UniformBufferObject {
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 proj;
+};
+
 const std::vector<Vertex> vertices = {
     {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
         {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
@@ -88,6 +99,7 @@ const std::vector<Vertex> vertices = {
 const std::vector<uint16_t> indices = {
     0, 1, 2, 2, 3, 0
 };
+
 
 class GameApplication {
 public:
@@ -138,6 +150,16 @@ private:
 
     void createIndexBuffer();
 
+    void createDescriptorSetLayout();
+
+    void createUniformBuffers();
+
+    void updateUniformBuffer(uint32_t currentImage);
+
+    void createDescriptorPool();
+
+    void createDescriptorSets();
+
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
@@ -184,6 +206,7 @@ private:
     VkExtent2D swapChainExtent;
     VkRenderPass renderPass;
     VkPipelineLayout pipelineLayout;
+    VkDescriptorSetLayout descriptorSetLayout;
     VkPipeline graphicsPipeline;
     std::vector<VkFramebuffer> swapChainFrameBuffers;
     VkCommandPool commandPool;
@@ -191,6 +214,11 @@ private:
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
+    VkDescriptorPool descriptorPool;
+    std::vector<VkDescriptorSet> descriptorSets;
+    std::vector<VkBuffer> uniformBuffers;
+    std::vector<VkDeviceMemory> uniformBuffersMemory;
+    std::vector<void*> uniformBuffersMapped;
     std::vector<VkCommandBuffer> commandBuffers;
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
